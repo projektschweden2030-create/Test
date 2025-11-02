@@ -16,7 +16,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: Checkout (nur Kontext, wir committen per API)
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Create repo files + labels + issues
@@ -28,43 +28,29 @@ jobs:
             const projectName = core.getInput('project_name');
 
             async function upsert(path, content, message) {
-              let sha = undefined;
-              try {
-                const { data } = await github.repos.getContent({ owner, repo, path });
-                sha = data.sha;
-              } catch (_) {}
+              let sha;
+              try { const { data } = await github.repos.getContent({ owner, repo, path }); sha = data.sha; } catch {}
               await github.repos.createOrUpdateFileContents({
-                owner, repo, path,
-                message,
+                owner, repo, path, message,
                 content: Buffer.from(content, 'utf8').toString('base64'),
                 sha
               });
             }
 
-            // README
-            await upsert(
-              'README.md',
-              `# ${projectName}\n\nAuto-setup via GitHub Actions.\n\n- Project Board: created\n- Issue Template: added\n- Sample stories: created\n`,
-              'chore: add README'
-            );
+            await upsert('README.md',
+              `# ${projectName}\n\nAuto-setup via GitHub Actions.\n- Issue template\n- Sample stories\n`,
+              'chore: add README');
 
-            // Issue Template
-            await upsert(
-              '.github/ISSUE_TEMPLATE/user_story.md',
-              `---\nname: User Story\ndescription: Create a user story\nlabels: story\n---\n\nAs a <role>, I need <feature>, so that <benefit>.\n\n**Acceptance Criteria**\n- Given ... When ... Then ...\n\n**Notes**\n- Non-functional / Risks / Dependencies\n`,
-              'chore: add user story template'
-            );
+            await upsert('.github/ISSUE_TEMPLATE/user_story.md',
+              `---\nname: User Story\ndescription: Create a user story\nlabels: story\n---\n\nAs a <role>, I need <feature>, so that <benefit>.\n\n**Acceptance Criteria**\n- Given ... When ... Then ...\n`,
+              'chore: add user story template');
 
-            // Labels
             const labels = [
               { name: 'story', color: '1f6feb', description: 'User story' },
               { name: 'blocked', color: 'd73a4a', description: 'Blocked item' }
             ];
-            for (const l of labels) {
-              try { await github.issues.createLabel({ owner, repo, ...l }); } catch (_) {}
-            }
+            for (const l of labels) { try { await github.issues.createLabel({ owner, repo, ...l }); } catch {} }
 
-            // Sample issues
             const titles = [
               'Story 1: Signup flow',
               'Story 2: Login screen',
@@ -72,13 +58,10 @@ jobs:
               'Story 4: Notifications',
               'Story 5: Data export'
             ];
-            for (const t of titles) {
-              await github.issues.create({ owner, repo, title: t, labels: ['story'] });
-            }
+            for (const t of titles) { await github.issues.create({ owner, repo, title: t, labels: ['story'] }); }
 
       - name: Output links
         run: |
-          echo "Repo: https://github.com/${{ github.repository }}"
           echo "Issues: https://github.com/${{ github.repository }}/issues"
-          echo "Projects: https://github.com/${{ github.repository }}/projects"
+          echo "Projects (manuell anlegen): https://github.com/${{ github.repository }}/projects"
 
